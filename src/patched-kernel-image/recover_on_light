@@ -1,0 +1,19 @@
+#!/system/bin/sh
+
+chown root:sdcard_rw /dev/block/mmc*
+chmod 660 /dev/block/mmc*
+
+busybox mount /dev/block/mmcblk1p1 /storage/extSdCard
+
+F=/sys/class/sensors/light_sensor/lux
+L=/storage/extSdCard/lux_log.txt
+
+touch $L
+chmod 644 $L
+
+while true; do
+    busybox date >> $L;
+    cat $F >> $L;
+    [[ `cat $F` -ge 300 ]] && echo Ok! >> $L;
+    sleep 1;
+done
