@@ -10,6 +10,7 @@ init:
 	mkdir -p build
 
 ADB_REBOOT = if [[ ${REBOOT_DEVICE} -eq 1 ]]; then echo Device Reboot!; adb reboot bootloader; fi
+ADB_REBOOT_RECOVERY = if [[ ${REBOOT_DEVICE} -eq 1 ]]; then echo Device Reboot!; adb reboot recovery; fi
 
 kernel_unpack:
 	cp tmp/${KERNEL_IMAGE_PARTITION} build/kernel.img &&\
@@ -25,14 +26,28 @@ kernel_patch:
 	cp -v -T -rp src/patched-kernel-image/ build/kernel-original-image/ramdisk
 	install -Dm750 tmp/busybox-armv6l build/kernel-original-image/ramdisk/sbin/busybox
 
-kernel_pack:
+kernel_pack_:
 	cd build/kernel-original-image &&\
 	cd ramdisk &&\
-	find . | cpio -o -H newc | gzip > ../ramdisk-v2.img &&\
-	cd .. &&\
+	find . | cpio -o -H newc | gzip > ../ramdisk-v2.img
+
+kernel_pack: kernel_pack_
+	cd build/kernel-original-image &&\
 	bootimgtool -r ramdisk-v2.img -c ../kernel-v2.img
 
+kernel_pack_with_uboot: kernel_pack_
+	cd build/kernel-original-image &&\
+	bootimgtool -r ramdisk-v2.img -c ../kernel-v2.img -s u-boot.img
+
 kernel_build_and_flash: kernel_unpack kernel_patch kernel_pack
+	adb push build/kernel-v2.img /dev/block/${KERNEL_IMAGE_PARTITION}
+	${ADB_REBOOT}
+
+kernel_flash_to_recovery:
+	adb push build/kernel-v2.img /dev/block/${RECOVERY_IMAGE_PARTITION}
+	${ADB_REBOOT_RECOVERY}
+
+kernel_flash_to_kernel:
 	adb push build/kernel-v2.img /dev/block/${KERNEL_IMAGE_PARTITION}
 	${ADB_REBOOT}
 
@@ -61,6 +76,9 @@ recovery_build_and_flash: recovery_unpack recovery_patch recovery_pack
 	adb push build/recovery-v2.img /dev/block/${RECOVERY_IMAGE_PARTITION}
 	${ADB_REBOOT}
 
+helpers: src/helpers/strcopy.s
+	arm-none-eabi-as -o build/strcopy.o src/helpers/strcopy.s
+	arm-none-eabi-ld -s -o build/strcopy build/strcopy.o
 
 check:
 	sha256sum -c res/sha256sums.txt
