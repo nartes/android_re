@@ -80,5 +80,29 @@ helpers: src/helpers/strcopy.s
 	arm-none-eabi-as -o build/strcopy.o src/helpers/strcopy.s
 	arm-none-eabi-ld -s -o build/strcopy build/strcopy.o
 
+flash_stock_i9082:
+	export ROOT=$$PWD && \
+	cd build/kernel-original-image && \
+	bootimgtool -r ramdisk-v2.img -p parameters.cfg \
+	-k $$ROOT/../android_kernel_samsung_i9082/arch/arm/boot/zImage \
+	-c ../kernel-v2.img && \
+	file ../kernel-v2.img && \
+	adb reboot recovery && \
+	sleep 20 && \
+	adb push ../kernel-v2.img /dev/block/mmcblk0p5 && \
+	adb reboot bootloader
+
+flash_upstream:
+	export ROOT=$$PWD && \
+	cd build/kernel-original-image && \
+	bootimgtool -r ramdisk-v2.img -p parameters.cfg \
+	-k $$ROOT/../linux/arch/arm/boot/zImage \
+	-c ../kernel-v2.img && \
+	file ../kernel-v2.img && \
+	adb reboot recovery && \
+	sleep 20 && \
+	adb push ../kernel-v2.img /dev/block/mmcblk0p5 && \
+	adb reboot bootloader
+
 check:
 	sha256sum -c res/sha256sums.txt
